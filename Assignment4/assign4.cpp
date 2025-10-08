@@ -1,83 +1,90 @@
-#include <iostream>
-#include <map>
-#include <vector>
-#include <string>
+#include <bits/stdc++.h>
 using namespace std;
-map<string, string> husband;
-map<string, string> wife;
-map<string, vector<string>> siblings;
-void addMarriage(string h, string w) {
-    husband[h] = w;
-    wife[w] = h;
-}
 
-void addSibling(string a, string b) {
-    siblings[a].push_back(b);
-    siblings[b].push_back(a);
-}
-bool isHusband(string h, string w) {
-    return husband[h] == w;
-}
+struct Edge {
+    string to;
+    int cost;
+};
+unordered_map<string, int> heuristic = {
+    {"Delhi", 300},
+    {"Noida", 280},
+    {"Chandigarh", 150},
+    {"Ludhiana", 100},
+    {"Amritsar", 50},
+    {"Punjab", 0}
+};
+unordered_map<string, vector<Edge>> graph = {
+    {"Delhi", {{"Noida", 30}, {"Chandigarh", 250}}},
+    {"Noida", {{"Chandigarh", 220}}},
+    {"Chandigarh", {{"Ludhiana", 100}, {"Amritsar", 200}}},
+    {"Ludhiana", {{"Punjab", 80}}},
+    {"Amritsar", {{"Punjab", 50}}},
+    {"Punjab", {}}
+};
 
-bool isWife(string w, string h) {
-    return wife[w] == h;
-}
-
-bool isSibling(string a, string b) {
-    if (a == b) return false;
-    for (string sib : siblings[a]) {
-        if (sib == b) return true;
+struct Node {
+    string name;
+    int g, f;
+    bool operator>(const Node& other) const {
+        return f > other.f;
     }
-    return false;
-}
+};
 
-bool isUncle(string u, string n) {
-    // If u is brother of n's parent (husband case)
-    for (auto &entry : husband) {
-        string father = entry.first;
-        string mother = entry.second;
-        if (isSibling(u, father)) return true;
-    }
-    return false;
-}
+vector<string> aStar(string start, string goal) {
+    priority_queue<Node, vector<Node>, greater<Node>> openList;
+    unordered_map<string, int> gScore;
+    unordered_map<string, string> parent;
+    unordered_set<string> closed;
 
-bool isAunt(string a, string n) {
-    // If a is sister of n's parent (wife case)
-    for (auto &entry : wife) {
-        string mother = entry.first;
-        string father = entry.second;
-        if (isSibling(a, mother)) return true;
-    }
-    return false;
-}
+    gScore[start] = 0;
+    openList.push({start, 0, heuristic[start]});
 
-bool isCousin(string a, string b) {
-    // Cousins if their parents are siblings
-    for (auto &entry1 : husband) {
-        string parent1 = entry1.first;
-        for (auto &entry2 : husband) {
-            string parent2 = entry2.first;
-            if (isSibling(parent1, parent2)) return true;
+    while (!openList.empty()) {
+        Node current = openList.top();
+        openList.pop();
+
+        if (current.name == goal) {
+            vector<string> path;
+            string node = goal;
+            while (!node.empty()) {
+                path.push_back(node);
+                node = parent[node];
+            }
+            reverse(path.begin(), path.end());
+            cout << "Total cost = " << gScore[goal] << " km\n";
+            return path;
+        }
+
+        if (closed.count(current.name)) continue;
+        closed.insert(current.name);
+
+        for (auto& edge : graph[current.name]) {
+            int tentative_g = gScore[current.name] + edge.cost;
+            if (!gScore.count(edge.to) || tentative_g < gScore[edge.to]) {
+                gScore[edge.to] = tentative_g;
+                parent[edge.to] = current.name;
+                int f = tentative_g + heuristic[edge.to];
+                openList.push({edge.to, tentative_g, f});
+            }
         }
     }
-    return false;
+    return {};
 }
 
 int main() {
-    addMarriage("Ramesh", "Sunita");
-    addMarriage("Mahesh", "Kavita");
+    string start = "Delhi";
+    string goal = "Punjab";
+    vector<string> path = aStar(start, goal);
 
-    addSibling("Ramesh", "Mahesh");  
-
-    addSibling("Anita", "Sunita");   
-  cout << "Is Ramesh husband of Sunita? " << (isHusband("Ramesh", "Sunita") ? "Yes" : "No") << endl;
-cout << "Is Sunita wife of Ramesh? " << (isWife("Sunita", "Ramesh") ? "Yes" : "No") << endl;
-cout << "Are Ramesh and Mahesh siblings? " << (isSibling("Ramesh", "Mahesh") ? "Yes" : "No") << endl;
-cout << "Is Ramesh uncle of Kavita? " << (isUncle("Ramesh", "Kavita") ? "Yes" : "No") << endl;
-cout << "Is Sunita aunt of Kavita? " << (isAunt("Sunita", "Kavita") ? "Yes" : "No") << endl;
-cout << "Are Ramesh's child and Mahesh's child cousins? " 
-     << (isCousin("Child1", "Child2") ? "Yes" : "No") << endl;
-
-
+    if (!path.empty()) {
+        cout << "Optimal Path: ";
+        for (int i = 0; i < path.size(); i++) {
+            cout << path[i];
+            if (i != path.size() - 1) cout << " -> ";
+        }
+        cout << endl;
+    } else {
+        cout << "No path found.\n";
+    }
     return 0;
 }
